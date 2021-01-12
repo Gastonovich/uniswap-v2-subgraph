@@ -1,5 +1,5 @@
 /* eslint-disable prefer-const */
-import { BigInt, BigDecimal, store, Address } from '@graphprotocol/graph-ts'
+import { BigInt, BigDecimal, store, Address, log } from '@graphprotocol/graph-ts'
 import {
   Pair,
   Token,
@@ -68,6 +68,7 @@ export function handleTransfer(event: Transfer): void {
     // update total supply
     pair.totalSupply = pair.totalSupply.plus(value)
     pair.save()
+    log.error('pair created in transfer zero {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
 
     // create new mint if no mints so far or if last one is done already
     if (mints.length === 0 || isCompleteMint(mints[mints.length - 1])) {
@@ -124,6 +125,7 @@ export function handleTransfer(event: Transfer): void {
   if (event.params.to.toHexString() == ADDRESS_ZERO && event.params.from.toHexString() == pair.id) {
     pair.totalSupply = pair.totalSupply.minus(value)
     pair.save()
+    log.error('pair created in transfer burn {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
 
     // this is a new instance of a logical burn
     let burns = transaction.burns
@@ -215,9 +217,9 @@ export function handleSync(event: Sync): void {
   let token0 = Token.load(pair.token0)
   let token1 = Token.load(pair.token1)
   let uniswap = UniswapFactory.load(FACTORY_ADDRESS)
-
   // reset factory liquidity by subtracting onluy tarcked liquidity
   uniswap.totalLiquidityETH = uniswap.totalLiquidityETH.minus(pair.trackedReserveETH as BigDecimal)
+  log.error('pair created in sync {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
 
   // reset token total liquidity amounts
   token0.totalLiquidity = token0.totalLiquidity.minus(pair.reserve0)
@@ -279,6 +281,7 @@ export function handleMint(event: Mint): void {
   let transaction = Transaction.load(event.transaction.hash.toHexString())
   let mints = transaction.mints
   let mint = MintEvent.load(mints[mints.length - 1])
+  log.debug('sync mint {}', [transaction.id.toString()])
 
   let pair = Pair.load(event.address.toHex())
   let uniswap = UniswapFactory.load(FACTORY_ADDRESS)
@@ -309,6 +312,8 @@ export function handleMint(event: Mint): void {
   token0.save()
   token1.save()
   pair.save()
+  log.error('pair created in mint {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
+
   uniswap.save()
 
   mint.sender = event.params.sender
@@ -332,6 +337,7 @@ export function handleMint(event: Mint): void {
 
 export function handleBurn(event: Burn): void {
   let transaction = Transaction.load(event.transaction.hash.toHexString())
+  log.debug('sync burn {}', [transaction.id.toString()])
 
   // safety check
   if (transaction === null) {
@@ -369,6 +375,8 @@ export function handleBurn(event: Burn): void {
   token0.save()
   token1.save()
   pair.save()
+  log.error('pair created in burn {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
+
   uniswap.save()
 
   // update burn
@@ -400,6 +408,7 @@ export function handleSwap(event: Swap): void {
   let amount1In = convertTokenToDecimal(event.params.amount1In, token1.decimals)
   let amount0Out = convertTokenToDecimal(event.params.amount0Out, token0.decimals)
   let amount1Out = convertTokenToDecimal(event.params.amount1Out, token1.decimals)
+  log.debug('sync swap {}', [pair.id.toString()])
 
   // totals for volume updates
   let amount0Total = amount0Out.plus(amount0In)
@@ -446,9 +455,11 @@ export function handleSwap(event: Swap): void {
   pair.untrackedVolumeUSD = pair.untrackedVolumeUSD.plus(derivedAmountUSD)
   pair.txCount = pair.txCount.plus(ONE_BI)
   pair.save()
+  log.error('pair created in swap {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
 
   // update global values, only used tracked amounts for volume
   let uniswap = UniswapFactory.load(FACTORY_ADDRESS)
+
   uniswap.totalVolumeUSD = uniswap.totalVolumeUSD.plus(trackedAmountUSD)
   uniswap.totalVolumeETH = uniswap.totalVolumeETH.plus(trackedAmountETH)
   uniswap.untrackedVolumeUSD = uniswap.untrackedVolumeUSD.plus(derivedAmountUSD)
