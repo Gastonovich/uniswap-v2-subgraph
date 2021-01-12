@@ -1,12 +1,14 @@
 /* eslint-disable prefer-const */
 import { Pair, Token, Bundle } from '../types/schema'
-import { BigDecimal, Address, BigInt } from '@graphprotocol/graph-ts/index'
+import { BigDecimal, Address, BigInt, log } from '@graphprotocol/graph-ts/index'
 import { ZERO_BD, factoryContract, ADDRESS_ZERO, ONE_BD } from './helpers'
 
-const WETH_ADDRESS = '0x0a180A76e4466bF68A7F86fB029BEd3cCcFaAac5'
-const USDC_WETH_PAIR = '0x30a5b96851E5Cb648803D491f0459Dea0ffD69d4' // created 10008355
-const DAI_WETH_PAIR = '0xb9f9d82923db472aa452427c3948269a858AA1f8' // created block 10042267
-const USDT_WETH_PAIR = '0xA0eEDD5DEEEBD65311916d2253CE0B2C83137FBF' // created block 10093341
+export const WETH_ADDRESS = '0x0a180a76e4466bf68a7f86fb029bed3cccfaaac5'
+export const USDC_WETH_PAIR = '0x30a5b96851e5cb648803d491f0459dea0ffd69d4' // created 10008355
+export const DAI_WETH_PAIR = '0xb9f9d82923db472aa452427c3948269a858aa1f8' // created block 10042267
+export const USDT_WETH_PAIR = '0xa0eedd5deeebd65311916d2253ce0b2c83137fbf' // created block 10093341
+export const USDT = '0x516de3a7a567d81737e3a46ec4ff9cfd1fcb0136'
+export const USDC = '0x0d9c8723b343a8368bebe0b5e89273ff8d712e3c'
 
 export function getEthPriceInUSD(): BigDecimal {
   // fetch eth prices for each stablecoin
@@ -20,6 +22,13 @@ export function getEthPriceInUSD(): BigDecimal {
     let daiWeight = daiPair.reserve1.div(totalLiquidityETH)
     let usdcWeight = usdcPair.reserve1.div(totalLiquidityETH)
     let usdtWeight = usdtPair.reserve0.div(totalLiquidityETH)
+    log.error('getEthPriceInUSD 1 {}', [
+      daiPair.token0Price
+        .times(daiWeight)
+        .plus(usdcPair.token0Price.times(usdcWeight))
+        .plus(usdtPair.token1Price.times(usdtWeight))
+        .toString()
+    ])
     return daiPair.token0Price
       .times(daiWeight)
       .plus(usdcPair.token0Price.times(usdcWeight))
@@ -29,11 +38,21 @@ export function getEthPriceInUSD(): BigDecimal {
     let totalLiquidityETH = daiPair.reserve1.plus(usdcPair.reserve1)
     let daiWeight = daiPair.reserve1.div(totalLiquidityETH)
     let usdcWeight = usdcPair.reserve1.div(totalLiquidityETH)
+    log.error('getEthPriceInUSD 2 {}', [
+      daiPair.token0Price
+        .times(daiWeight)
+        .plus(usdcPair.token0Price.times(usdcWeight))
+        .toString()
+    ])
     return daiPair.token0Price.times(daiWeight).plus(usdcPair.token0Price.times(usdcWeight))
     // USDC is the only pair so far
   } else if (usdcPair !== null) {
+    log.error('getEthPriceInUSD 3 {}', [usdcPair.token0Price.toString()])
+
     return usdcPair.token0Price
   } else {
+    log.error('getEthPriceInUSD 4 {}', [])
+
     return ZERO_BD
   }
 }

@@ -110,5 +110,15 @@ export function handleNewPair(event: PairCreated): void {
   token0.save()
   token1.save()
   pair.save()
+
+  const createdPair = Pair.load(event.params.pair.toHexString())
+
+  log.error('------------ PAIR CREATED -------------- token0 = {}  token1 = {}  ---- name1 {}  name2 {}', [
+    createdPair.token0,
+    createdPair.token1,
+    token1.name,
+    token0.name
+  ])
+
   factory.save()
 }

@@ -12,7 +12,15 @@ import {
 } from '../types/schema'
 import { Pair as PairContract, Mint, Burn, Swap, Transfer, Sync } from '../types/templates/Pair/Pair'
 import { updatePairDayData, updateTokenDayData, updateUniswapDayData, updatePairHourData } from './dayUpdates'
-import { getEthPriceInUSD, findEthPerToken, getTrackedVolumeUSD, getTrackedLiquidityUSD } from './pricing'
+import {
+  getEthPriceInUSD,
+  findEthPerToken,
+  getTrackedVolumeUSD,
+  getTrackedLiquidityUSD,
+  WETH_ADDRESS,
+  USDT,
+  USDC
+} from './pricing'
 import {
   convertTokenToDecimal,
   ADDRESS_ZERO,
@@ -68,7 +76,7 @@ export function handleTransfer(event: Transfer): void {
     // update total supply
     pair.totalSupply = pair.totalSupply.plus(value)
     pair.save()
-    log.error('pair created in transfer zero {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
+    // ////log.error('pair created in transfer zero {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
 
     // create new mint if no mints so far or if last one is done already
     if (mints.length === 0 || isCompleteMint(mints[mints.length - 1])) {
@@ -125,8 +133,12 @@ export function handleTransfer(event: Transfer): void {
   if (event.params.to.toHexString() == ADDRESS_ZERO && event.params.from.toHexString() == pair.id) {
     pair.totalSupply = pair.totalSupply.minus(value)
     pair.save()
-    log.error('pair created in transfer burn {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
-
+    if (
+      (pair.token0 === WETH_ADDRESS && pair.token1 === USDT) ||
+      (pair.token1 === WETH_ADDRESS && pair.token0 === USDT)
+    ) {
+      log.error('pair created in transfer burn {}', [event.address.toHex()])
+    }
     // this is a new instance of a logical burn
     let burns = transaction.burns
     let burn: BurnEvent
@@ -214,13 +226,12 @@ export function handleTransfer(event: Transfer): void {
 
 export function handleSync(event: Sync): void {
   let pair = Pair.load(event.address.toHex())
+
   let token0 = Token.load(pair.token0)
   let token1 = Token.load(pair.token1)
   let uniswap = UniswapFactory.load(FACTORY_ADDRESS)
   // reset factory liquidity by subtracting onluy tarcked liquidity
   uniswap.totalLiquidityETH = uniswap.totalLiquidityETH.minus(pair.trackedReserveETH as BigDecimal)
-  log.error('pair created in sync {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
-
   // reset token total liquidity amounts
   token0.totalLiquidity = token0.totalLiquidity.minus(pair.reserve0)
   token1.totalLiquidity = token1.totalLiquidity.minus(pair.reserve1)
@@ -234,7 +245,6 @@ export function handleSync(event: Sync): void {
   else pair.token1Price = ZERO_BD
 
   pair.save()
-
   // update ETH price now that reserves could have changed
   let bundle = Bundle.load('1')
   bundle.ethPrice = getEthPriceInUSD()
@@ -275,6 +285,13 @@ export function handleSync(event: Sync): void {
   uniswap.save()
   token0.save()
   token1.save()
+  log.error('----handle SYNC event---- address {}, token0 {} token1 {} totalLiquidity1 {} totalLiquidity2 {}', [
+    event.address.toHex(),
+    token0.name,
+    token1.name,
+    token0.totalLiquidity.toString(),
+    token1.totalLiquidity.toString()
+  ])
 }
 
 export function handleMint(event: Mint): void {
@@ -312,8 +329,18 @@ export function handleMint(event: Mint): void {
   token0.save()
   token1.save()
   pair.save()
-  log.error('pair created in mint {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
-
+  if (
+    (pair.token0 === WETH_ADDRESS && pair.token1 === USDT) ||
+    (pair.token1 === WETH_ADDRESS && pair.token0 === USDT)
+  ) {
+    log.error('pair created in transfer mint USDT_WETH_PAIR  {}', [event.address.toHex()])
+  }
+  if (
+    (pair.token0 === WETH_ADDRESS && pair.token1 === USDC) ||
+    (pair.token1 === WETH_ADDRESS && pair.token0 === USDC)
+  ) {
+    log.error('pair created in transfer mint USDC_WETH_PAIR {}', [event.address.toHex()])
+  }
   uniswap.save()
 
   mint.sender = event.params.sender
@@ -375,8 +402,18 @@ export function handleBurn(event: Burn): void {
   token0.save()
   token1.save()
   pair.save()
-  log.error('pair created in burn {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
-
+  if (
+    (pair.token0 === WETH_ADDRESS && pair.token1 === USDT) ||
+    (pair.token1 === WETH_ADDRESS && pair.token0 === USDT)
+  ) {
+    log.error('pair created in transfer burn  USDT_WETH_PAIR{}', [event.address.toHex()])
+  }
+  if (
+    (pair.token0 === WETH_ADDRESS && pair.token1 === USDC) ||
+    (pair.token1 === WETH_ADDRESS && pair.token0 === USDC)
+  ) {
+    log.error('pair created in transfer burn USDC_WETH_PAIR {}', [event.address.toHex()])
+  }
   uniswap.save()
 
   // update burn
@@ -455,8 +492,20 @@ export function handleSwap(event: Swap): void {
   pair.untrackedVolumeUSD = pair.untrackedVolumeUSD.plus(derivedAmountUSD)
   pair.txCount = pair.txCount.plus(ONE_BI)
   pair.save()
-  log.error('pair created in swap {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
 
+  if (
+    (pair.token0 === WETH_ADDRESS && pair.token1 === USDT) ||
+    (pair.token1 === WETH_ADDRESS && pair.token0 === USDT)
+  ) {
+    log.error('pair created in transfer swap USDT_WETH_PAIR {}', [event.address.toHex()])
+  }
+
+  if (
+    (pair.token0 === WETH_ADDRESS && pair.token1 === USDC) ||
+    (pair.token1 === WETH_ADDRESS && pair.token0 === USDC)
+  ) {
+    log.error('pair created in transfer swap USDC_WETH_PAIR {}', [event.address.toHex()])
+  }
   // update global values, only used tracked amounts for volume
   let uniswap = UniswapFactory.load(FACTORY_ADDRESS)
 
