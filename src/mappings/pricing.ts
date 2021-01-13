@@ -3,10 +3,10 @@ import { Pair, Token, Bundle } from '../types/schema'
 import { BigDecimal, Address, BigInt, log } from '@graphprotocol/graph-ts/index'
 import { ZERO_BD, factoryContract, ADDRESS_ZERO, ONE_BD } from './helpers'
 
-export const WETH_ADDRESS = '0x0a180a76e4466bf68a7f86fb029bed3cccfaaac5'
-export const USDC_WETH_PAIR = '0x30a5b96851e5cb648803d491f0459dea0ffd69d4' // created 10008355
-export const DAI_WETH_PAIR = '0xb9f9d82923db472aa452427c3948269a858aa1f8' // created block 10042267
-export const USDT_WETH_PAIR = '0xa0eedd5deeebd65311916d2253ce0b2c83137fbf' // created block 10093341
+export const WETH_ADDRESS = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'
+export const USDC_WETH_PAIR = '0x4a0f6a0e467260771927419a6f0057816d8306e0' // created 10008355
+export const DAI_WETH_PAIR = '0x4c9cbdff1e51c25d8c366dd5b573eb4a14fd5b39' // created block 10042267
+export const USDT_WETH_PAIR = '0x889fd2408503b95606872e447e0cf0fc42e246cc' // created block 10093341
 export const USDT = '0x516de3a7a567d81737e3a46ec4ff9cfd1fcb0136'
 export const USDC = '0x0d9c8723b343a8368bebe0b5e89273ff8d712e3c'
 
@@ -22,7 +22,7 @@ export function getEthPriceInUSD(): BigDecimal {
     let daiWeight = daiPair.reserve1.div(totalLiquidityETH)
     let usdcWeight = usdcPair.reserve1.div(totalLiquidityETH)
     let usdtWeight = usdtPair.reserve0.div(totalLiquidityETH)
-    log.error('getEthPriceInUSD 1 {}', [
+    log.error('getEthPriceInUSD 3 {}', [
       daiPair.token0Price
         .times(daiWeight)
         .plus(usdcPair.token0Price.times(usdcWeight))
@@ -51,7 +51,7 @@ export function getEthPriceInUSD(): BigDecimal {
 
     return usdcPair.token0Price
   } else {
-    log.error('getEthPriceInUSD 4 {}', [])
+    log.error('getEthPriceInUSD 4 ', [])
 
     return ZERO_BD
   }

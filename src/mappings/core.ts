@@ -76,7 +76,6 @@ export function handleTransfer(event: Transfer): void {
     // update total supply
     pair.totalSupply = pair.totalSupply.plus(value)
     pair.save()
-    // ////log.error('pair created in transfer zero {}, {}, {}', [event.address.toHex(), pair.token0, pair.token1])
 
     // create new mint if no mints so far or if last one is done already
     if (mints.length === 0 || isCompleteMint(mints[mints.length - 1])) {
@@ -133,12 +132,6 @@ export function handleTransfer(event: Transfer): void {
   if (event.params.to.toHexString() == ADDRESS_ZERO && event.params.from.toHexString() == pair.id) {
     pair.totalSupply = pair.totalSupply.minus(value)
     pair.save()
-    if (
-      (pair.token0 === WETH_ADDRESS && pair.token1 === USDT) ||
-      (pair.token1 === WETH_ADDRESS && pair.token0 === USDT)
-    ) {
-      log.error('pair created in transfer burn {}', [event.address.toHex()])
-    }
     // this is a new instance of a logical burn
     let burns = transaction.burns
     let burn: BurnEvent
@@ -285,13 +278,21 @@ export function handleSync(event: Sync): void {
   uniswap.save()
   token0.save()
   token1.save()
-  log.error('----handle SYNC event---- address {}, token0 {} token1 {} totalLiquidity1 {} totalLiquidity2 {}', [
-    event.address.toHex(),
-    token0.name,
-    token1.name,
-    token0.totalLiquidity.toString(),
+  if (
+    event.address.toHexString() &&
+    token0.name.toString() &&
+    token1.name.toString() &&
+    token0.totalLiquidity.toString() &&
     token1.totalLiquidity.toString()
-  ])
+  ) {
+    log.error('----handle SYNC event---- address {}, token0 {} token1 {} totalLiquidity1 {} totalLiquidity2 {}', [
+      event.address.toHexString(),
+      token0.name.toString(),
+      token1.name.toString(),
+      token0.totalLiquidity.toString(),
+      token1.totalLiquidity.toString()
+    ])
+  }
 }
 
 export function handleMint(event: Mint): void {
@@ -329,18 +330,6 @@ export function handleMint(event: Mint): void {
   token0.save()
   token1.save()
   pair.save()
-  if (
-    (pair.token0 === WETH_ADDRESS && pair.token1 === USDT) ||
-    (pair.token1 === WETH_ADDRESS && pair.token0 === USDT)
-  ) {
-    log.error('pair created in transfer mint USDT_WETH_PAIR  {}', [event.address.toHex()])
-  }
-  if (
-    (pair.token0 === WETH_ADDRESS && pair.token1 === USDC) ||
-    (pair.token1 === WETH_ADDRESS && pair.token0 === USDC)
-  ) {
-    log.error('pair created in transfer mint USDC_WETH_PAIR {}', [event.address.toHex()])
-  }
   uniswap.save()
 
   mint.sender = event.params.sender
@@ -353,7 +342,13 @@ export function handleMint(event: Mint): void {
   // update the LP position
   let liquidityPosition = createLiquidityPosition(event.address, mint.to as Address)
   createLiquiditySnapshot(liquidityPosition, event)
-
+  log.error('----handle MINT event---- sender {}, amount0 {} amount1 {} logIndex {} amountUSD {}', [
+    mint.sender.toHexString(),
+    mint.amount0.toString(),
+    mint.amount1.toString(),
+    mint.logIndex.toString(),
+    mint.amountUSD.toString()
+  ])
   // update day entities
   updatePairDayData(event)
   updatePairHourData(event)
@@ -402,18 +397,6 @@ export function handleBurn(event: Burn): void {
   token0.save()
   token1.save()
   pair.save()
-  if (
-    (pair.token0 === WETH_ADDRESS && pair.token1 === USDT) ||
-    (pair.token1 === WETH_ADDRESS && pair.token0 === USDT)
-  ) {
-    log.error('pair created in transfer burn  USDT_WETH_PAIR{}', [event.address.toHex()])
-  }
-  if (
-    (pair.token0 === WETH_ADDRESS && pair.token1 === USDC) ||
-    (pair.token1 === WETH_ADDRESS && pair.token0 === USDC)
-  ) {
-    log.error('pair created in transfer burn USDC_WETH_PAIR {}', [event.address.toHex()])
-  }
   uniswap.save()
 
   // update burn
@@ -424,7 +407,13 @@ export function handleBurn(event: Burn): void {
   burn.logIndex = event.logIndex
   burn.amountUSD = amountTotalUSD as BigDecimal
   burn.save()
-
+  log.error('----handle BURN event---- sender {}, amount0 {} amount1 {} logIndex {} amountUSD {}', [
+    burn.sender.toHexString(),
+    burn.amount0.toString(),
+    burn.amount1.toString(),
+    burn.logIndex.toString(),
+    burn.amountUSD.toString()
+  ])
   // update the LP position
   let liquidityPosition = createLiquidityPosition(event.address, burn.sender as Address)
   createLiquiditySnapshot(liquidityPosition, event)
@@ -492,20 +481,6 @@ export function handleSwap(event: Swap): void {
   pair.untrackedVolumeUSD = pair.untrackedVolumeUSD.plus(derivedAmountUSD)
   pair.txCount = pair.txCount.plus(ONE_BI)
   pair.save()
-
-  if (
-    (pair.token0 === WETH_ADDRESS && pair.token1 === USDT) ||
-    (pair.token1 === WETH_ADDRESS && pair.token0 === USDT)
-  ) {
-    log.error('pair created in transfer swap USDT_WETH_PAIR {}', [event.address.toHex()])
-  }
-
-  if (
-    (pair.token0 === WETH_ADDRESS && pair.token1 === USDC) ||
-    (pair.token1 === WETH_ADDRESS && pair.token0 === USDC)
-  ) {
-    log.error('pair created in transfer swap USDC_WETH_PAIR {}', [event.address.toHex()])
-  }
   // update global values, only used tracked amounts for volume
   let uniswap = UniswapFactory.load(FACTORY_ADDRESS)
 
@@ -550,6 +525,31 @@ export function handleSwap(event: Swap): void {
   swap.to = event.params.to
   swap.from = event.transaction.from
   swap.logIndex = event.logIndex
+  if (
+    swap.transaction.toString() &&
+    swap.amount0In.toString() &&
+    swap.amount1In.toString() &&
+    swap.amount0Out.toString() &&
+    swap.amount1Out.toString() &&
+    swap.logIndex.toString() &&
+    swap.to.toHexString() &&
+    swap.from.toHexString()
+  ) {
+    log.error(
+      '----handle SWAP event----  transaction {} amount0In {} amount1In {} amount0Out {} amount1Out {} logIndex {} to {} from {}',
+      [
+        swap.transaction.toString(),
+        swap.amount0In.toString(),
+        swap.amount1In.toString(),
+        swap.amount0Out.toString(),
+        swap.amount1Out.toString(),
+        swap.logIndex.toString(),
+        swap.to.toHexString(),
+        swap.from.toHexString()
+      ]
+    )
+  }
+
   // use the tracked amount if we have it
   swap.amountUSD = trackedAmountUSD === ZERO_BD ? derivedAmountUSD : trackedAmountUSD
   swap.save()
